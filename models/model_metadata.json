@@ -1,0 +1,127 @@
+{
+  "best_model_name": "random_forest",
+  "feature_columns": [
+    "r",
+    "tau_y",
+    "Re",
+    "Fr",
+    "F",
+    "k",
+    "theta2",
+    "alpha1",
+    "alpha2",
+    "eps1",
+    "eps2"
+  ],
+  "target_columns": [
+    "u",
+    "uplv",
+    "up",
+    "tau_w"
+  ],
+  "best_model_overall_metrics": {
+    "rmse": 3.1494062520381627e-05,
+    "mae": 8.718733298060754e-06,
+    "mse": 9.918759740377065e-10,
+    "r2": 0.9999997924978223
+  },
+  "best_model_per_target_metrics": [
+    {
+      "target": "u",
+      "rmse": 3.5958552855214595e-05,
+      "mae": 1.0073457974587864e-05,
+      "mse": 1.2930175234412619e-09,
+      "r2": 0.9999999763324882
+    },
+    {
+      "target": "uplv",
+      "rmse": 1.2580999132291252e-05,
+      "mae": 3.683146943314258e-06,
+      "mse": 1.5828153916671322e-10,
+      "r2": 0.999999766900867
+    },
+    {
+      "target": "up",
+      "rmse": 2.9340463185059718e-05,
+      "mae": 9.108749973064596e-06,
+      "mse": 8.608627799138446e-10,
+      "r2": 0.9999995166044533
+    },
+    {
+      "target": "tau_w",
+      "rmse": 4.068589502062174e-05,
+      "mae": 1.2009578301276376e-05,
+      "mse": 1.6553420536290525e-09,
+      "r2": 0.999999910153481
+    }
+  ],
+  "feature_stats": {
+    "r": {
+      "min": 0.0,
+      "max": 1.0,
+      "mean": 0.5015706214689265
+    },
+    "tau_y": {
+      "min": 0.05,
+      "max": 0.2,
+      "mean": 0.12552179487179482
+    },
+    "Re": {
+      "min": 0.05,
+      "max": 0.2,
+      "mean": 0.1228316239316239
+    },
+    "Fr": {
+      "min": 0.1,
+      "max": 0.5,
+      "mean": 0.3191196581196581
+    },
+    "F": {
+      "min": 0.0,
+      "max": 2.0,
+      "mean": 0.9832222222222222
+    },
+    "k": {
+      "min": 0.1,
+      "max": 100.0,
+      "mean": 48.421075
+    },
+    "theta2": {
+      "min": 0.1,
+      "max": 1.4472,
+      "mean": 0.7865726068965517
+    },
+    "alpha1": {
+      "min": 0.0,
+      "max": 0.5,
+      "mean": 0.24557902298850573
+    },
+    "alpha2": {
+      "min": 0.0,
+      "max": 0.5,
+      "mean": 0.2593065134099617
+    },
+    "eps1": {
+      "min": 0.0,
+      "max": 0.9,
+      "mean": 0.4344258620689655
+    },
+    "eps2": {
+      "min": 0.0,
+      "max": 0.9,
+      "mean": 0.4113655172413794
+    }
+  },
+  "train_size": 36000,
+  "test_size": 24000,
+  "results_table": "models/model_results.csv",
+  "best_model_hyperparameters": {
+    "bootstrap": false,
+    "max_depth": 16,
+    "max_features": "sqrt",
+    "min_samples_leaf": 1,
+    "min_samples_split": 2,
+    "n_estimators": 500
+  },
+  "research_reference": "Insights from the attached KL-Newtonian fluid study informed the focus on Froude, Reynolds, permeability, and yield-stress parameters when tuning these regressors."
+}
