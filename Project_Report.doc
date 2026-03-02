@@ -1,0 +1,172 @@
+Unified Multi-Output Regression for Fluid Mechanics — Project Implementation Report
+
+Purpose and research alignment (paper order)
+1) Problem framing (Kuntal et al., 2026)
+   - The paper studies KL‑Newtonian blood-flow dynamics in microvessels with layered porous regions.
+   - Key control parameters emphasized: Froude number (Fr), Reynolds number (Re), yield stress (τy), Kuang–Luo parameter (θ2), and permeability/viscosity modifiers (α1, α2, ε1, ε2), plus Forchheimer number (F) and permeability k.
+   - The model examines how these parameters influence velocity profiles, plug-core velocity (up), and wall shear stress (τw).
+
+2) ML objective derived from the paper’s physics
+   - Learn a surrogate that maps 11 control inputs to 4 outputs: u, uplv, up, τw.
+   - Treat it as a multi-output regression problem to emulate the coupled physics discussed in the paper.
+
+Dataset and inputs (paper‑aligned variables)
+3) Dataset
+   - File: data/Unified_fluid_ml_dataset_60k.csv
+   - Rows: 60,000 ordered samples (ascending order noted).
+   - Inputs (11): r, τy, Re, Fr, F, k, θ2, α1, α2, ε1, ε2
+   - Targets (4): u, uplv, up, τw
+
+4) Feature/target definitions (paper symbols)
+   - r: radial coordinate
+   - τy: yield stress
+   - Re: Reynolds number
+   - Fr: Froude number (inertial vs gravitational effect)
+   - F: Forchheimer number (porous effects)
+   - k: permeability
+   - θ2: KL‑Newtonian parameter
+   - α1, α2: viscosity parameters for porous regions
+   - ε1, ε2: permeability parameters for porous regions
+   - u, uplv: axial velocities in different regions
+   - up: plug-core velocity
+   - τw: wall shear stress
+
+4.1) Input parameter ranges used in the model (from training metadata)
+   - r: 0.0 → 1.0
+   - τy: 0.05 → 0.20
+   - Re: 0.05 → 0.20
+   - Fr: 0.10 → 0.50
+   - F: 0.0 → 2.0
+   - k: 0.1 → 100.0
+   - θ2: 0.10 → 1.4472
+   - α1: 0.0 → 0.5
+   - α2: 0.0 → 0.5
+   - ε1: 0.0 → 0.9
+   - ε2: 0.0 → 0.9
+   - These ranges are the bounds enforced in the Streamlit inputs and represent the dataset coverage used during training.
+
+Implementation flow (aligned to research workflow)
+5) Ordered data splitting (important due to ordered dataset)
+   - Split into 5 sequential parts, preserving ordering.
+   - Train on parts 1, 3, 5; test on parts 2, 4.
+   - This mirrors interpolation testing across regimes (as would be done when exploring parameter ranges in the paper).
+
+6) Preprocessing
+   - X/y separation using the 11 inputs and 4 targets.
+   - StandardScaler applied only for the neural network (MLP).
+   - Tree models (Random Forest, XGBoost) are used without scaling.
+
+Technical interpretation of parameter influence (paper‑accurate)
+6.1) Basis of training and what the model learns
+   - The model is trained to approximate the physics‑based mapping from control parameters to velocity/shear outputs.
+   - Each training sample encodes a specific physical regime (Re/Fr/τy/θ2/k/α/ε combinations), so learning is effectively a surrogate for the paper’s analytical solution families.
+   - Because the dataset is ordered and densely sampled, the models primarily learn smooth, deterministic relationships between inputs and outputs, rather than noisy, stochastic effects.
+
+6.2) Parameter groups and their dominant roles
+   - Inertial vs gravitational regime: Re and Fr strongly control velocity magnitude and profile shape; higher Fr often reduces velocities in the paper’s context due to stronger inertial dominance over gravity.
+   - Yield/viscoplastic effects: τy and θ2 shape the plug‑core behavior (up) and the transition into porous layers.
+   - Porous layer resistance: k, α1, α2, ε1, ε2 influence flow resistance and therefore affect τw (wall shear) and near‑wall velocities (uplv).
+   - Forchheimer effects: F modulates nonlinear drag in porous regions, impacting both τw and velocity gradients.
+
+6.3) Output interpretation (what the model predicts)
+   - u: axial velocity in a core/central region (bulk flow response).
+   - uplv: axial velocity in a near‑wall/plasma region (sensitive to porous parameters and friction).
+   - up: plug‑core velocity, representing the relatively flat core flow portion described in the paper.
+   - τw: wall shear stress, a key clinical and hemodynamic indicator; expected to be most sensitive to porous resistance and shear‑related inputs (τy, α/ε, k).
+
+6.4) How different model families behave on inputs
+   - Random Forest (best): excels when the mapping is smooth but highly nonlinear across regimes, effectively capturing thresholds where porous resistance or yield stress changes the slope of velocity response.
+   - XGBoost: strong for continuous monotonic patterns and interactions between Re/Fr/τy; tends to generalize well across smoothly varying regimes.
+   - MLP: benefits from scaled inputs and captures global smoothness, but can underfit sharp regime transitions when training data is highly structured.
+
+6.5) Practical meaning for interpretation
+   - The most important features (from tree importance plots) tend to match the paper’s focus: Fr, Re, τy, k, θ2, α/ε combinations.
+   - The model is effectively a fast surrogate for the paper’s analytical solutions, enabling rapid sensitivity studies without re‑deriving the asymptotic equations.
+
+7) Model family selection (3 model classes)
+   - Model A: XGBoost regressor (wrapped in MultiOutputRegressor).
+   - Model B: Random Forest regressor (native multi-output support).
+   - Model C: MLPRegressor (neural network, ReLU, early stopping).
+   - Rationale: tree ensembles capture non‑linear physics; MLP provides a flexible continuous surrogate.
+
+8) Hyperparameter tuning (controlled search)
+   - Implemented in tune_models.py with a capped random subset of ParameterGrid per model.
+   - Validation split keeps temporal order (last 20% of the training blocks).
+   - Results saved per model as CSV and best params stored in models/best_params.json.
+   - Training pipeline automatically reuses tuned parameters when present.
+
+Evaluation and analysis (paper‑style validation)
+9) Metrics (per target + overall)
+   - RMSE (primary), MAE, MSE, R² computed per target and overall.
+   - Overall RMSE used to select the best model.
+
+10) Diagnostics and analytics
+   - Predicted vs Actual scatter plots (per target) for the best model.
+   - Residual histograms and residual‑vs‑actual plots to inspect bias/variance.
+   - Feature/target correlation heatmap to verify expected physics‑driven relationships (e.g., Fr/Re with velocity, τy with τw).
+   - Feature importance charts for tree models to identify key drivers (paper parameters). 
+
+Artifacts and outputs produced
+11) Model artifacts
+   - models/best_model.pkl: selected model by overall RMSE.
+   - models/model_results.csv: overall metrics across models.
+   - models/per_target_metrics.csv: per‑target metrics.
+   - models/model_metadata.json: best model summary + feature stats.
+   - models/best_params.json: tuned hyperparameters.
+   - models/hparam_results_*.csv: tuning logs.
+
+12) Visuals
+   - figures/model_rmse.png
+   - figures/*_pred_vs_actual.png
+   - figures/*_residual_hist.png
+   - figures/*_residual_scatter.png
+   - figures/feature_target_correlation.png
+   - figures/*_feature_importance.png
+
+13) Streamlit dashboard (applied deployment for interpretation)
+   - Manual input of the 11 physical parameters.
+   - Best model prediction for u, uplv, up, τw.
+   - Live metrics table + tuned hyperparameters.
+   - Visualization panels for RMSE comparison, prediction scatter, residuals, and correlations.
+
+Best model selection (current state)
+14) Current best model after tuning
+   - Random Forest achieved the lowest overall RMSE.
+   - Selected model saved and used by the dashboard.
+
+How this mirrors the paper structure
+15) Paper‑aligned narrative flow
+   - (a) Define physical parameters and regions (inputs/targets chosen).
+   - (b) Explore parameter influence (correlation + feature importance plots).
+   - (c) Validate solution accuracy (RMSE/MAE/R², residual analysis).
+   - (d) Provide an interpretable surrogate tool (Streamlit dashboard).
+
+Major implementation steps (summary list for slides)
+16) Implementation checklist
+   - Create project structure: data/, models/, figures/.
+   - Load ordered dataset and define 11 inputs + 4 outputs.
+   - Sequential split: train on parts 1/3/5, test on 2/4.
+   - Train 3 models: XGBoost, Random Forest, MLP.
+   - Tune hyperparameters with capped search and save best params.
+   - Re‑train with tuned parameters.
+   - Evaluate per‑target and overall metrics (RMSE/MAE/MSE/R²).
+   - Generate analytics: correlation, residuals, scatter, feature importance.
+   - Persist best model and metadata.
+   - Expose everything via Streamlit dashboard.
+
+Notes for presentation
+17) Suggested slide ordering
+   - Problem statement & paper context
+   - Parameter definitions (inputs/outputs)
+   - Dataset & sequential split
+   - Model architectures + tuning
+   - Metrics & best model selection
+   - Analytics plots (correlation, residuals, feature importance)
+   - Streamlit demo
+   - Conclusions & next steps
+
+References
+18) Paper used for alignment
+   - Kuntal et al. (2026). Asymptotic analysis of a multi‑layered model of KL‑Newtonian fluids for blood flow dynamics in microvessels. Eur. Phys. J. Plus.
+
+End of report
